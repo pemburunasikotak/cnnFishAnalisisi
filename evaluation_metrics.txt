@@ -1,0 +1,13 @@
+=== Laporan Klasifikasi (Metrik Evaluasi) ===
+                     precision    recall  f1-score   support
+
+Gerabah tidak segar       1.00      0.92      0.96        12
+Kembung tidak segar       1.00      1.00      1.00        12
+Kuniran tidak segar       0.92      1.00      0.96        12
+      gerabah segar       1.00      0.75      0.86        12
+      kembung segar       1.00      1.00      1.00        12
+      kuniran segar       0.80      1.00      0.89        12
+
+           accuracy                           0.94        72
+          macro avg       0.95      0.94      0.94        72
+       weighted avg       0.95      0.94      0.94        72

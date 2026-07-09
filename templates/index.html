@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FishLens - Deteksi Jenis Ikan AI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- Phosphor Icons for modern SVG icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+</head>
+<body>
+    <div class="background-elements">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+    </div>
+
+    <main class="container">
+        <header class="header">
+            <div class="logo">
+                <i class="ph-fill ph-fish-simple"></i>
+                <h1>FishLens AI</h1>
+            </div>
+            <p class="subtitle">Identifikasi kesegaran jenis ikan <strong>Kembung</strong>, <strong>Gerabah</strong>, dan <strong>Kuniran</strong> secara otomatis menggunakan teknologi <strong>Convolutional Neural Network</strong>.</p>
+        </header>
+
+        <section class="scanner-card glass-panel">
+            <div class="upload-area" id="upload-area">
+                <input type="file" id="file-input" accept="image/jpeg, image/png, image/webp" hidden>
+                
+                <div class="upload-content" id="upload-content">
+                    <div class="icon-container">
+                        <i class="ph ph-upload-simple"></i>
+                    </div>
+                    <h3>Pilih atau Tarik Foto Ikan</h3>
+                    <p>Format yang didukung: JPG, PNG, WEBP (Max 16MB)</p>
+                    <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">Pilih Foto</button>
+                </div>
+                
+                <div class="preview-container hidden" id="preview-container">
+                    <img id="image-preview" src="" alt="Preview">
+                    <div class="preview-overlay">
+                        <button class="btn btn-icon btn-remove" id="btn-remove" title="Hapus foto"><i class="ph ph-trash"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="action-area hidden" id="action-area">
+                <button class="btn btn-primary btn-block" id="btn-predict">
+                    <i class="ph ph-scan"></i> Analisis Gambar
+                </button>
+            </div>
+            
+            <div class="loading-state hidden" id="loading-state">
+                <div class="spinner"></div>
+                <p>AI sedang menganalisis ciri-ciri ikan...</p>
+            </div>
+        </section>
+
+        <!-- Result Section -->
+        <section class="result-card glass-panel hidden" id="result-card">
+            <div class="result-header">
+                <h2>Hasil Analisis</h2>
+                <button class="btn btn-outline btn-small" id="btn-reset">Coba Lagi</button>
+            </div>
+            
+            <div class="main-result">
+                <div class="result-badge">
+                    <i class="ph-fill ph-check-circle"></i>
+                </div>
+                <div>
+                    <p class="result-label">Terdeteksi Sebagai</p>
+                    <h3 class="result-fish-name" id="result-name">Kembung</h3>
+                </div>
+                <div class="confidence-circle">
+                    <svg viewBox="0 0 36 36" class="circular-chart">
+                        <path class="circle-bg"
+                            d="M18 2.0845
+                            a 15.9155 15.9155 0 0 1 0 31.831
+                            a 15.9155 15.9155 0 0 1 0 -31.831"
+                        />
+                        <path class="circle" id="confidence-circle-path"
+                            stroke-dasharray="0, 100"
+                            d="M18 2.0845
+                            a 15.9155 15.9155 0 0 1 0 31.831
+                            a 15.9155 15.9155 0 0 1 0 -31.831"
+                        />
+                        <text x="18" y="20.35" class="percentage" id="result-confidence">0%</text>
+                    </svg>
+                </div>
+            </div>
+
+            <div class="details-section">
+                <h4>Detail Probabilitas Lainnya</h4>
+                <div class="bars-container" id="details-bars">
+                    <!-- Bars injected by JS -->
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const uploadArea = document.getElementById('upload-area');
+        const fileInput = document.getElementById('file-input');
+        const uploadContent = document.getElementById('upload-content');
+        const previewContainer = document.getElementById('preview-container');
+        const imagePreview = document.getElementById('image-preview');
+        const btnRemove = document.getElementById('btn-remove');
+        const actionArea = document.getElementById('action-area');
+        const btnPredict = document.getElementById('btn-predict');
+        const loadingState = document.getElementById('loading-state');
+        const resultCard = document.getElementById('result-card');
+        const btnReset = document.getElementById('btn-reset');
+        
+        let selectedFile = null;
+
+        // Drag & Drop Handlers
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, () => uploadArea.classList.add('highlight'), false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, () => uploadArea.classList.remove('highlight'), false);
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles(files);
+        });
+
+        fileInput.addEventListener('change', function() {
+            handleFiles(this.files);
+        });
+
+        function handleFiles(files) {
+            if (files.length > 0) {
+                const file = files[0];
+                if (file.type.startsWith('image/')) {
+                    selectedFile = file;
+                    
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        imagePreview.src = e.target.result;
+                        uploadContent.classList.add('hidden');
+                        previewContainer.classList.remove('hidden');
+                        actionArea.classList.remove('hidden');
+                        resultCard.classList.add('hidden');
+                    }
+                    reader.readAsDataURL(file);
+                } else {
+                    alert("Tolong unggah file gambar (JPG/PNG)");
+                }
+            }
+        }
+
+        btnRemove.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent opening file dialog
+            resetForm();
+        });
+
+        btnReset.addEventListener('click', resetForm);
+
+        function resetForm() {
+            selectedFile = null;
+            fileInput.value = '';
+            uploadContent.classList.remove('hidden');
+            previewContainer.classList.add('hidden');
+            actionArea.classList.add('hidden');
+            resultCard.classList.add('hidden');
+            imagePreview.src = '';
+        }
+
+        btnPredict.addEventListener('click', async () => {
+            if (!selectedFile) return;
+
+            // UI State change
+            actionArea.classList.add('hidden');
+            loadingState.classList.remove('hidden');
+            resultCard.classList.add('hidden');
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                loadingState.classList.add('hidden');
+                
+                if (response.ok) {
+                    showResult(data);
+                } else {
+                    alert(data.error || 'Terjadi kesalahan saat memproses gambar.');
+                    actionArea.classList.remove('hidden');
+                }
+            } catch (error) {
+                loadingState.classList.add('hidden');
+                actionArea.classList.remove('hidden');
+                alert('Gagal terhubung ke server. Pastikan server berjalan.');
+                console.error(error);
+            }
+        });
+
+        function showResult(data) {
+            document.getElementById('result-name').textContent = data.prediction;
+            document.getElementById('result-confidence').textContent = Math.round(data.confidence) + '%';
+            
+            // Animate circle
+            setTimeout(() => {
+                document.getElementById('confidence-circle-path').setAttribute('stroke-dasharray', `${data.confidence}, 100`);
+            }, 100);
+
+            // Render details
+            const detailsContainer = document.getElementById('details-bars');
+            detailsContainer.innerHTML = '';
+            
+            // Sort by probabilitas tertinggi
+            data.details.sort((a, b) => b.probability - a.probability);
+
+            data.details.forEach(item => {
+                const isPrimary = item.class === data.prediction;
+                const barHtml = `
+                    <div class="bar-row">
+                        <div class="bar-info">
+                            <span class="bar-label ${isPrimary ? 'primary-text' : ''}">${item.class}</span>
+                            <span class="bar-value">${item.probability.toFixed(1)}%</span>
+                        </div>
+                        <div class="bar-track">
+                            <div class="bar-fill ${isPrimary ? 'primary-fill' : ''}" style="width: 0%"></div>
+                        </div>
+                    </div>
+                `;
+                detailsContainer.insertAdjacentHTML('beforeend', barHtml);
+            });
+
+            resultCard.classList.remove('hidden');
+            
+            // Animate bars after a tiny delay
+            setTimeout(() => {
+                const fills = detailsContainer.querySelectorAll('.bar-fill');
+                data.details.forEach((item, index) => {
+                    fills[index].style.width = `${item.probability}%`;
+                });
+            }, 50);
+        }
+    </script>
+</body>
+</html>
