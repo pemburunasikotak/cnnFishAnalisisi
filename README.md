@@ -85,3 +85,31 @@ Untuk membuktikan bahwa arsitektur MobileNetV2 lebih baik dibandingkan CNN stand
 python ablation_study.py
 ```
 *Script ini melatih 2 model secara paralel dan menghasilkan grafik perbandingan di `ablation_study_results.png`.*
+
+---
+
+## 🌐 Menjalankan Server API (Terkoneksi ke React Native / Publik)
+
+Jika Anda ingin mengakses model ini dari aplikasi mobile (React Native) atau perangkat lain, gunakan fitur server Flask yang sudah terpasang.
+
+### 1. Jalankan Server Flask (Terminal 1)
+Buka terminal dan aktifkan environment, lalu jalankan:
+```bash
+python app.py
+```
+*Ini akan menjalankan API secara lokal di `http://0.0.0.0:5001`. Biarkan terminal ini menyala.*
+
+### 2. Buka Akses Publik via Pinggy (Terminal 2)
+Buka terminal **baru**, lalu jalankan perintah tunnel ini:
+```bash
+ssh -p 443 -R0:localhost:5001 a.pinggy.io
+```
+Nanti Anda akan mendapatkan URL publik seperti `https://khgaz-...run.pinggy-free.link`. URL tersebut bisa diakses dari mana saja.
+
+### 3. Cek Dokumentasi (Swagger UI)
+Kunjungi URL dari Pinggy tersebut dan tambahkan `/apidocs/` di belakangnya.
+Contoh: `https://khgaz-...run.pinggy-free.link/apidocs/`
+
+Untuk mengirim data (gambar) dari React Native, kirim HTTP POST *multipart/form-data* ke endpoint `/predict` pada URL publik tersebut.
+
+3.9.	TensorFlow Lite Evaluation
